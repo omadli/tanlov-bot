@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from aiogram import executor, Dispatcher
-from bot.loader import dp
+from bot.handlers import dp
 from src.settings import ADMIN
 
 async def startup_notify_admin(dispatcher: Dispatcher):
