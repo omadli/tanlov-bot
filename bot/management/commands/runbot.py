@@ -1,15 +1,19 @@
 from django.core.management.base import BaseCommand
 from aiogram import executor, Dispatcher
-from bot.handlers import dp
+from bot.loader import dp
+import bot.aio.middlewares, bot.aio.filters, bot.aio.handlers
+from bot.aio.utils.set_bot_commands import set_default_commands
 from src.settings import ADMIN
 
-async def startup_notify_admin(dispatcher: Dispatcher):
+
+async def startup(dispatcher: Dispatcher):
+    await set_default_commands(dispatcher)
     await dispatcher.bot.send_message(
         chat_id=ADMIN, 
         text="Bot ishga tushdi"
     )
 
-async def shutdown_notify_admin(dispatcher: Dispatcher):
+async def shutdown(dispatcher: Dispatcher):
     await dispatcher.bot.send_message(
         chat_id=ADMIN, 
         text="Bot to'xtadi"
@@ -24,6 +28,6 @@ class Command(BaseCommand):
         executor.start_polling(
             dispatcher=dp, 
             skip_updates=True, 
-            on_startup=startup_notify_admin, 
-            on_shutdown=shutdown_notify_admin
+            on_startup=startup, 
+            on_shutdown=shutdown
         )
