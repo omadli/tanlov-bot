@@ -9,3 +9,8 @@ async def cmd_start(message: types.Message):
         f"<b>“XALQPARVAR DAVLAT XIZMATCHISI”</b> ijtimoiy videoroliklar "
         f"tanlovida ishtirok etish uchun ariza topshirish botiga xush kelibsiz!"
     )
+
+
+@dp.message_handler(state=None)
+async def bot_echo(message: types.Message):
+    await message.answer(message.text)
