@@ -7,7 +7,7 @@ class TgUser(models.Model):
     username = models.CharField(max_length=100, unique=True, null=True, default=None, help_text="Telegram username")
 
 class Contestant(models.Model):
-    tg_user = models.ForeignKey(TgUser, on_delete=models.CASCADE, help_text="Telegram user", unique=True)
+    tg_user = models.OneToOneField(to=TgUser, on_delete=models.CASCADE, help_text="Telegram user", unique=True)
     fish = models.CharField(max_length=200, help_text="Familiya Ism Sharif")
     birth_date = models.CharField(max_length=50, help_text="Tug'ilgan kun: dd.mm.yyyy shaklda")
     adress = models.CharField(max_length=200, help_text="To'liq manzil: viloyat, mahalla, ko'cha, xonadon")
