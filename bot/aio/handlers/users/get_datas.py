@@ -156,7 +156,7 @@ async def finish_sending_files(message: types.Message, state: FSMContext):
     txt += "Manzil: " + datas["adress"] + "\n"
     txt += "Ish yoki o'qish joyi: " + datas["work_or_study"] + "\n"
     txt += "Tel: " + datas["tel"] + "\n"
-    txt += "Fayllar: " + datas["files"]
+    # txt += "Fayllar: " + datas["files"]
     m1 = await message.answer(txt, reply_markup=types.ReplyKeyboardRemove())
     await m1.reply(
         text = "Barcha ma'lumotlar to'g'riligini tasdiqlaysizmi?",
@@ -195,10 +195,9 @@ async def submit_form(query: types.CallbackQuery, state: FSMContext):
     txt += "Manzil: " + datas["adress"] + "\n"
     txt += "Ish yoki o'qish joyi: " + datas["work_or_study"] + "\n"
     txt += "Tel: " + datas["tel"] + "\n"
-    txt += "Fayllar: " + datas["files"]
-    await dp.bot.send_message(ADMIN, txt)
+    # txt += "Fayllar: " + datas["files"]
     try:
-        await Contestant_create(
+        contestant = await Contestant_create(
             tg_user = await TgUser_get(tg_id=query.from_user.id),
             fish = datas["full_name"],
             birth_date = datas["birth_date"],
@@ -207,6 +206,25 @@ async def submit_form(query: types.CallbackQuery, state: FSMContext):
             tel = int(datas["tel"]),
             files = datas["files"]
         )
+        c_id = contestant.pk
+        txt2 =  f"#N{c_id} raqamli ishtirokchi\n"
+        txt2 += f"Ishtirokchi <a href='tg://user?id={query.from_user.id}'>{query.from_user.full_name}</a> "
+        txt2 += f"{'@' + query.from_user.username}" if query.from_user.username else ""
+        txt2 += "\n" + txt
+        await dp.bot.send_message(ADMIN, txt2)
+        for i in range(n_video):
+            await dp.bot.send_video(
+                chat_id = ADMIN,
+                video = files.get("video")[i],
+                caption = f"#N{c_id} raqamli ishtirokchi"
+            )
+        for i in range(n_doc):
+            await dp.bot.send_document(
+                chat_id = ADMIN,
+                document = files.get("document")[i],
+                caption = f"#N{c_id} raqamli ishtirokchi "
+            )
+
         await query.message.edit_text("Tayyor!\nSizning ma'lumotlaringiz yuborildi")
     except Exception as e:
         print(e)
@@ -218,7 +236,7 @@ async def submit_form(query: types.CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query_handler(text="no", state=Form.ok)
-async def no_submit_form(query: types.Query):
+async def no_submit_form(query: types.CallbackQuery, state: FSMContext):
     await query.message.edit_text("Bekor qilindi. Boshqatdan /start bosing")
     await state.finish()
 

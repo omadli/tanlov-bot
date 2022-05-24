@@ -20,3 +20,4 @@ class Contestant(models.Model):
 
     def __str__(self) -> str:
         return self.fish + " - @" + self.tg_user.username
+    
