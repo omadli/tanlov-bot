@@ -1,5 +1,6 @@
 import json
 import datetime
+import re
 from aiogram import types
 from bot.loader import dp
 from bot.async_orm import *
@@ -102,7 +103,7 @@ async def enter_tel(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        text = "Tanlovga taqdim etilayotgan materiallar (elektron fayllar)ni kiriting",
+        text = "Tanlovga taqdim etilayotgan materiallar (elektron fayllar yoki linklar)ni kiriting",
         reply_markup = types.ReplyKeyboardRemove()
     )
 
@@ -116,41 +117,13 @@ async def error_tel(message: types.Message, state: FSMContext):
 
 
 
-@dp.message_handler(content_types=["video", "document"], state=Form.files)
-async def entering_files(message: types.Message, state: FSMContext):
-    datas = await state.get_data()
-    files = datas.get("files")
-    if files:
-        files = json.loads(files)  
-    else:
-        await message.answer(
-            text="Yana fayllar yubormoqchi bo'lsangiz yuboring.\n"
-                "Yuboradigan fayllaringiz tugagach pastdagi \"Yakunlash\" tugmasini bosing.",
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[
-                    [types.KeyboardButton(text="Yakunlash")]
-                ],
-                resize_keyboard=True,
-                one_time_keyboard=False
-            )
-        )
-        files = {"video":[], "document":[]}
-    ctype = str(message.content_type)
-    if ctype == "video":
-        files["video"].append(message.video.file_id)
-    elif ctype == "document":
-        files["document"].append(message.document.file_id)
-    
-
-    datas.update(files = json.dumps(files))
-    await state.update_data(datas)
-
-
-
 @dp.message_handler(text="Yakunlash", state=Form.files)
 async def finish_sending_files(message: types.Message, state: FSMContext):
     datas = await state.get_data()
-    files = json.loads(datas.get("files"))
+    if not datas.get("files"):
+        await message.answer("Tanlovga taqdim etilayotgan materiallar (elektron fayllar yoki linklar)ni kiriting")
+        return
+    # files = json.loads(datas.get("files"))
     txt = "FISH: " + datas.get("full_name") + "\n"
     txt += "Tug'ilgan sana: " + datas["birth_date"] + "\n"
     txt += "Manzil: " + datas["adress"] + "\n"
@@ -167,20 +140,81 @@ async def finish_sending_files(message: types.Message, state: FSMContext):
     )
     await Form.next()
 
+    
+
+@dp.message_handler(content_types=["text", "video", "document"], state=Form.files)
+async def entering_files(message: types.Message, state: FSMContext):
+    datas = await state.get_data()
+    files = datas.get("files")
+    if files:
+        files = json.loads(files)  
+    else:
+        files = {"video":[], "document":[], "link":[]}
+    ctype = str(message.content_type)
+    if ctype == "video":
+        files["video"].append(message.video.file_id)
+        await message.reply(
+            text="Video qabul qilindi\n"
+                "Yana fayllar yoki link yubormoqchi bo'lsangiz yuboring.\n"
+                "Yuboradigan fayllaringiz tugagach pastdagi \"Yakunlash\" tugmasini bosing.",
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[
+                    [types.KeyboardButton(text="Yakunlash")]
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+        )
+    elif ctype == "document":
+        files["document"].append(message.document.file_id)
+        await message.reply(
+            text="Fayl qabul qilindi\n"
+                "Yana fayllar yoki link yubormoqchi bo'lsangiz yuboring.\n"
+                "Yuboradigan fayllaringiz tugagach pastdagi \"Yakunlash\" tugmasini bosing.",
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[
+                    [types.KeyboardButton(text="Yakunlash")]
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+        )
+    elif ctype == "text":
+        count = 0
+        for entity in message.entities:
+            if entity.type == "url":
+                files["link"].append(message.text[entity.offset: entity.offset + entity.length])
+                count += 1
+        if count == 0:
+            await message.answer(
+                text="Faqat videolar yoki videolar faylini yoki ularning linkini yuboring\n"
+                "Barchasi yuborib bo'lgach pastdagi \"Yakunlash\" tugmasini bosing.",
+            )
+        else:
+            await message.reply(
+                text=f"{count} ta link qabul qilindi\n"
+                    f"Yana fayllar yoki link yubormoqchi bo'lsangiz yuboring.\n"
+                    f"Yuboradigan fayllaringiz tugagach pastdagi \"Yakunlash\" tugmasini bosing.",
+                reply_markup=types.ReplyKeyboardMarkup(
+                    keyboard=[
+                        [types.KeyboardButton(text="Yakunlash")]
+                    ],
+                    resize_keyboard=True,
+                    one_time_keyboard=False
+                )
+            )
+            
+
+    datas.update(files = json.dumps(files))
+    await state.update_data(datas)
+
+
 
 
 @dp.message_handler(content_types="any", state=Form.files)
 async def error_sending_files(message: types.Message, state: FSMContext):
     await message.answer(
-        text="Faqat videolar yoki videolar faylini yuboring.\n"
-            "Barchasi yuborib bo'lgach pastdagi \"Yakunlash\" tugmasini bosing.",
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[
-                [types.KeyboardButton(text="Yakunlash")]
-            ],
-            resize_keyboard=True,
-            one_time_keyboard=False
-        )
+        text="Faqat videolar yoki videolar faylini yoki ularning linkini yuboring\n"
     )
 
 
@@ -190,6 +224,7 @@ async def submit_form(query: types.CallbackQuery, state: FSMContext):
     files = json.loads(datas.get("files"))
     n_video = len(files.get("video"))
     n_doc = len(files.get("document"))
+    n_link = len(files.get("link"))
     txt = "FISH: " + datas.get("full_name") + "\n"
     txt += "Tug'ilgan sana: " + datas["birth_date"] + "\n"
     txt += "Manzil: " + datas["adress"] + "\n"
@@ -223,6 +258,11 @@ async def submit_form(query: types.CallbackQuery, state: FSMContext):
                 chat_id = ADMIN,
                 document = files.get("document")[i],
                 caption = f"#N{c_id} raqamli ishtirokchi "
+            )
+        if n_link:
+            await dp.bot.send_message(
+                chat_id = ADMIN,
+                text = f"#N{c_id} raqamli ishtirokchi linklari: \n" + "\n".join(files.get("link"))
             )
 
         await query.message.edit_text("Tayyor!\nSizning ma'lumotlaringiz yuborildi")
